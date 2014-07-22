@@ -1,0 +1,23 @@
+<html>
+    <head>
+        <script src="/script.js"></script>
+        <title>Example</title>
+    </head>
+    <esi:assign name="var" value="val"/>
+    <esi:choose>
+        <esi:when test="$(HTTP_HOST) matches '''o'''">
+            <esi:foreach collection="$(MATCHES)">
+                <esi:vars name="item"/>
+            </esi:foreach>
+        </esi:when>
+        <esi:otherwise>
+            $set_redirect('/');
+        </esi:otherwise>
+    </esi:choose>
+    <body>
+        <p>
+            This is an example document that will give me no $dollar()s
+            <esi:text>and no $dollar()s either</esi:text>
+        </p>
+    </body>
+</html>
