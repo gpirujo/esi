@@ -73,7 +73,7 @@ attributes =
     }
 
 function =
-    '$' id:id '(' _ args:arguments? _ ')' {
+    '$' id:id '(' _ args:list? _ ')' {
         var x = [id];
         if (args) x = x.concat(args);
         return x;
@@ -84,54 +84,74 @@ id =
         return chars.join('');
     }
 
-arguments =
-    argument:string_expression arguments:(
-        _ ',' _ arguments:arguments {
-            return arguments;
-        }
-    )? {
-        var x = [argument];
-        if (arguments) x = x.concat(arguments);
+list =
+    e:expression {
+        return [e];
+    } /
+    e:expression _ ',' _ l:list {
+        var x = [e];
+        x = x.concat(list);
         return x;
     }
 
+expression =
+    boolean_expression /
+    number_expression /
+    string_expression /
+    array_expression
+
+array_expression =
+    '[' l:list ']' {
+        return l;
+    }
+
 boolean_expression =
-    boolean_literal /
-    number_comparison /
-    string_comparison
+    boolean_term /
+    a:boolean_term _ op:('&&' / '||') _ b:boolean_expression {
+        return [op, a, b];
+    }
 
-boolean_literal =
-    'true' {
-        return true;
+boolean_term =
+    v:('true' / 'false') {
+        return v === 'true';
     } /
-    'false' {
-        return false;
-    }
-
-number_comparison =
     a:number_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:number_expression {
-        return ['n' + op, a, b];
-    }
-
-number_expression =
-    term /
-    a:term _ op:[+-] _ b:number_expression {
         return [op, a, b];
-    }
-
-term =
-    factor /
-    a:factor _ op:[*/] _ b:term {
+    } /
+    a:string_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:string_expression {
         return [op, a, b];
-    }
-
-factor =
-    number_literal /
-    '(' _ e:number_expression _ ')' {
+    } /
+    '(' _ e:boolean_expression _ ')' {
         return e;
     }
 
-number_literal =
+string_expression =
+    string_term /
+    a:string_term _ op:[+] _ b:string_expression {
+        return [op, a, b];
+    }
+
+string_term =
+    "'" chars:[^']* "'" {
+        return chars.join('');
+    } /
+    '(' _ e:string_expression _ ')' {
+        return e;
+    }
+
+number_expression =
+    number_term /
+    a:number_term _ op:[+-] _ b:number_expression {
+        return [op, a, b];
+    }
+
+number_term =
+    number_factor /
+    a:number_factor _ op:[*/] _ b:number_term {
+        return [op, a, b];
+    }
+
+number_factor =
     ints:[0-9]+ decimals:(
         '.' digits:[0-9]+ {
             return parseFloat('.' + digits.join(''));
@@ -140,22 +160,9 @@ number_literal =
         var x = parseInt(ints.join(''));
         if (decimals) x += decimals;
         return x;
-    }
-
-string_comparison =
-    a:string_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:string_expression {
-        return ['s' + op, a, b];
-    }
-
-string_expression =
-    string_literal /
-    a:string_literal _ op:'+' _ b:string_expression {
-        return ['s' + op, a, b];
-    }
-
-string_literal =
-    "'" chars:[^']* "'" {
-        return chars.join('');
+    } /
+    '(' _ e:number_expression _ ')' {
+        return e;
     }
 
 _ =
