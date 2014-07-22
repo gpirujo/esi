@@ -4,7 +4,9 @@ code =
             return [esi].concat(code);
         }
     )? {
-        return rest ? [content].concat(rest) : [content];
+        var code = [content];
+        if (rest) code = code.concat(rest);
+        return code;
     }
 
 content =
@@ -13,7 +15,7 @@ content =
             return char;
         }
     )* {
-        return chars.join('');
+        return ['text', chars.join('')];
     }
 
 assign =
