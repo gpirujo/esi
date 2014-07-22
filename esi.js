@@ -29,6 +29,9 @@ function execute(code, os) {
                 execute(line[2], os);
             }
 
+        } else if (command == 'dollar') {
+            os.write('$');
+
         }
     }
 }
