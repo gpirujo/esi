@@ -19,8 +19,8 @@ content =
     }
 
 assign =
-    '<esi:assign' attributes:attributes '/>' {
-        return ['assign', attributes.name, attributes.value];
+    '<esi:assign' __ 'name="' _ n:id _ '"' _ '>' e:expression '</esi:assign>' {
+        return ['assign', n, e];
     }
 
 choose =
@@ -31,8 +31,8 @@ choose =
     }
 
 when =
-    '<esi:when' attributes:attributes '>' code:code '</esi:when>' content {
-        return ['when', attributes.test, code];
+    '<esi:when' __ 'test="' _ e:boolean_expression _ '"' _ '>' code:code '</esi:when>' content {
+        return ['when', e, code];
     }
 
 otherwise =
@@ -41,13 +41,13 @@ otherwise =
     }
 
 foreach =
-    '<esi:foreach' attributes:attributes '>' code:code '</esi:foreach>' {
-        return ['foreach', attributes.collection, code];
+    '<esi:foreach' __ 'collection="' _ e:array_expression _ '"' _ '>' code:code '</esi:foreach>' {
+        return ['foreach', e, code];
     }
 
 vars =
-    '<esi:vars' attributes:attributes '/>' {
-        return ['vars', attributes.name];
+    '<esi:vars>' e:expression '</esi:vars>' {
+        return ['vars', e];
     }
 
 text =
@@ -59,19 +59,6 @@ text =
         return ['text', content.join('')];
     }
 
-attributes =
-    list:(
-        [ \t\n]+ id:id '="' value:[^"]* '"' {
-            return [id, value.join('')];
-        }
-    )* _ {
-        var attributes = {};
-        for (var i = 0; i < list.length; i++) {
-            attributes[list[i][0]] = list[i][1];
-        }
-        return attributes;
-    }
-
 function =
     '$' id:id '(' _ args:list? _ ')' {
         var x = [id];
@@ -80,8 +67,8 @@ function =
     }
 
 id =
-    chars:[a-z_]+ {
-        return chars.join('');
+    initial:[a-zA-Z_] rest:[a-zA-Z0-9_]* {
+        return initial + rest.join('');
     }
 
 list =
@@ -102,8 +89,10 @@ expression =
 
 array_expression =
     '[' l:list ']' {
-        return l;
-    }
+        return ['array', l];
+    } /
+    function /
+    variable
 
 boolean_expression =
     boolean_term /
@@ -115,11 +104,16 @@ boolean_term =
     v:('true' / 'false') {
         return v === 'true';
     } /
+    function /
+    variable /
     a:number_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:number_expression {
         return [op, a, b];
     } /
     a:string_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:string_expression {
         return [op, a, b];
+    } /
+    a:string_expression __ 'matches' __ "'''" re:[^']* "'''" {
+        return ['matches', a, re.join('')];
     } /
     '(' _ e:boolean_expression _ ')' {
         return e;
@@ -135,6 +129,8 @@ string_term =
     "'" chars:[^']* "'" {
         return chars.join('');
     } /
+    function /
+    variable /
     '(' _ e:string_expression _ ')' {
         return e;
     }
@@ -161,9 +157,25 @@ number_factor =
         if (decimals) x += decimals;
         return x;
     } /
+    function /
+    variable /
     '(' _ e:number_expression _ ')' {
         return e;
     }
 
+variable =
+    '$(' _ id:id sub:(
+        '{' _ e:string_expression _ '}' {
+            return e;
+        }
+    )? _ ')' {
+        var x = ['var', id];
+        if (sub) x.push(sub);
+        return x;
+    }
+
 _ =
     [ \t\n]*
+
+__ =
+    [ \t\n]+

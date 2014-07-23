@@ -4,7 +4,15 @@ require('fs').readFile('example.html', 'utf8', function(err, doc) {
     var parser = require('./esi_parser.js');
     var bytecode = parser.parse(doc);
 
+    console.log(require('util').inspect(bytecode, {
+        'depth': 20,
+        'colors': true
+    }));
+//    return;
+
     var interpreter = require('./esi_interpreter');
-    interpreter.run(bytecode, process.stdout);
+    var output = interpreter.run(bytecode);
+
+    process.stdout.write(output);
 
 });

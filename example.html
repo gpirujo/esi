@@ -3,11 +3,11 @@
         <script src="/script.js"></script>
         <title>Example</title>
     </head>
-    <esi:assign name="var" value="val"/>
+    <esi:assign name="var">'val'</esi:assign>
     <esi:choose>
         <esi:when test="$(HTTP_HOST) matches '''o'''">
             <esi:foreach collection="$(MATCHES)">
-                <esi:vars name="item"/>
+                <esi:vars>$(item)</esi:vars>
             </esi:foreach>
         </esi:when>
         <esi:otherwise>
