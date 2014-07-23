@@ -101,9 +101,6 @@ boolean_expression =
     }
 
 boolean_term =
-    v:('true' / 'false') {
-        return v === 'true';
-    } /
     a:number_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:number_expression {
         return [op, a, b];
     } /
@@ -116,14 +113,17 @@ boolean_term =
     '(' _ e:boolean_expression _ ')' {
         return e;
     } /
+    v:('true' / 'false') {
+        return v === 'true';
+    } /
     variable /
     function
 
 string_expression =
-    string_term /
     a:string_term _ op:[+] _ b:string_expression {
         return [op, a, b];
-    }
+    } /
+    string_term
 
 string_term =
     "'" chars:[^']* "'" {
@@ -136,16 +136,16 @@ string_term =
     function
 
 number_expression =
-    number_term /
     a:number_term _ op:[+-] _ b:number_expression {
         return [op, a, b];
-    }
+    } /
+    number_term
 
 number_term =
-    number_factor /
     a:number_factor _ op:[*/] _ b:number_term {
         return [op, a, b];
-    }
+    } /
+    number_factor
 
 number_factor =
     ints:[0-9]+ decimals:(
