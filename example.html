@@ -5,7 +5,7 @@
     </head>
     <esi:assign name="var">'val'</esi:assign>
     <esi:choose>
-        <esi:when test="$(HTTP_HOST) matches '''o'''">
+        <esi:when test="'porongo' matches '''.o'''">
             <esi:foreach collection="$(MATCHES)">
                 <esi:vars>$(item)</esi:vars>
             </esi:foreach>

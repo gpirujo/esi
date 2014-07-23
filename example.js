@@ -8,7 +8,6 @@ require('fs').readFile('example.html', 'utf8', function(err, doc) {
         'depth': 20,
         'colors': true
     }));
-//    return;
 
     var interpreter = require('./esi_interpreter');
     var output = interpreter.run(bytecode);

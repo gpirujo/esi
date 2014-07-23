@@ -91,8 +91,8 @@ array_expression =
     '[' l:list ']' {
         return ['array', l];
     } /
-    function /
-    variable
+    variable /
+    function
 
 boolean_expression =
     boolean_term /
@@ -104,8 +104,6 @@ boolean_term =
     v:('true' / 'false') {
         return v === 'true';
     } /
-    function /
-    variable /
     a:number_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:number_expression {
         return [op, a, b];
     } /
@@ -117,7 +115,9 @@ boolean_term =
     } /
     '(' _ e:boolean_expression _ ')' {
         return e;
-    }
+    } /
+    variable /
+    function
 
 string_expression =
     string_term /
@@ -129,11 +129,11 @@ string_term =
     "'" chars:[^']* "'" {
         return chars.join('');
     } /
-    function /
-    variable /
     '(' _ e:string_expression _ ')' {
         return e;
-    }
+    } /
+    variable /
+    function
 
 number_expression =
     number_term /
@@ -157,11 +157,11 @@ number_factor =
         if (decimals) x += decimals;
         return x;
     } /
-    function /
-    variable /
     '(' _ e:number_expression _ ')' {
         return e;
-    }
+    } /
+    variable /
+    function
 
 variable =
     '$(' _ id:id sub:(
