@@ -4,85 +4,93 @@ module.exports = {
 
         var variables = {};
 
+        var run_actions = {
+            'assign': function(line) {
+                variables[line[1]] = line[2];
+            },
+            'vars': function(line) {
+                return _evaluate(line[1]);
+            },
+            'text': function(line) {
+                return line[1];
+            },
+            'choose': function(line) {
+                var output = '';
+                for (var j = 1; j < line.length; j++) {
+                    if (line[j][0] == 'when') {
+                        if (_evaluate(line[j][1])) {
+                            output += _run(line[j][2]);
+                            break;
+                        }
+                    } else if (line[j][0] == 'otherwise') {
+                        output += _run(line[j][1]);
+                    }
+                }
+                return output;
+            },
+            'foreach': function(line) {
+                var output = '';
+                var collection = _evaluate(line[1]);
+                if (util.isArray(collection) && collection.length && collection[0] == 'array') {
+                    collection.shift();
+                    for (var j = 0; j < collection.length; j++) {
+                        variables['item'] = collection[j];
+                        output += _run(line[2]);
+                    }
+                }
+                return output;
+            },
+            'dollar': function(line) {
+                return '$';
+            }
+        };
+
         function _run(code) {
-            var output = '';
+            var block_output = '', action_output;
             for (var i = 0; i < code.length; i++) {
-                var line = code[i];
-
-                if (line[0] == 'assign') {
-                    variables[line[1]] = line[2];
-
-                } else if (line[0] == 'vars') {
-                    output += _evaluate(line[1]);
-
-                } else if (line[0] == 'text') {
-                    output += line[1];
-
-                } else if (line[0] == 'choose') {
-                    for (var j = 1; j < line.length; j++) {
-                        if (line[j][0] == 'when') {
-                            if (_evaluate(line[j][1])) {
-                                output += _run(line[j][2]);
-                                break;
-                            }
-                        } else if (line[j][0] == 'otherwise') {
-                            output += _run(line[j][1]);
-                        }
+                if (run_actions.hasOwnProperty(code[i][0])) {
+                    if (action_output = run_actions[code[i][0]](code[i])) {
+                        block_output += action_output;
                     }
-
-                } else if (line[0] == 'foreach') {
-                    var collection = _evaluate(line[1]);
-                    if (util.isArray(collection) && collection.length && collection[0] == 'array') {
-                        collection.shift();
-                        for (var j = 0; j < collection.length; j++) {
-                            variables['item'] = collection[j];
-                            output += _run(line[2]);
-                        }
-                    }
-
-                } else if (line[0] == 'dollar') {
-                    output += '$';
-
+                } else {
+                    throw 'No code for action ' + code[i][0];
                 }
             }
-            return output;
+            return block_output;
         }
+
+        var evaluate_actions = {
+            '*': function(a, b) { return a * b; },
+            '/': function(a, b) { return a / b; },
+            '+': function(a, b) { return a + b; },
+            '-': function(a, b) { return a - b; },
+            '<': function(a, b) { return a < b; },
+            '>': function(a, b) { return a > b; },
+            '<=': function(a, b) { return a <= b; },
+            '>=': function(a, b) { return a >= b; },
+            '==': function(a, b) { return a == b; },
+            '!=': function(a, b) { return a != b; },
+            '&&': function(a, b) { return a && b; },
+            '||': function(a, b) { return a || b; },
+            'var': function(a) { return variables[a]; },
+            'matches': function(a, b) {
+                var re = new RegExp(b, 'g');
+                var x = String(a).match(re);
+                variables['MATCHES'] = ['array'].concat(x);
+                return Boolean(x);
+            },
+        };
 
         function _evaluate(expr) {
             if (util.isArray(expr)) {
-                if (expr[0] == 'var') {
-                    return variables[expr[1]];
-                } else if (expr[0] == '*') {
-                    return expr[1] * expr[2];
-                } else if (expr[0] == '/') {
-                    return expr[1] / expr[2];
-                } else if (expr[0] == '+') {
-                    return expr[1] + expr[2];
-                } else if (expr[0] == '-') {
-                    return expr[1] - expr[2];
-                } else if (expr[0] == '<') {
-                    return expr[1] < expr[2];
-                } else if (expr[0] == '<=') {
-                    return expr[1] <= expr[2];
-                } else if (expr[0] == '>') {
-                    return expr[1] > expr[2];
-                } else if (expr[0] == '>=') {
-                    return expr[1] >= expr[2];
-                } else if (expr[0] == '==') {
-                    return expr[1] == expr[2];
-                } else if (expr[0] == '!=') {
-                    return expr[1] != expr[2];
-                } else if (expr[0] == '&&') {
-                    return Boolean(expr[1] && expr[2]);
-                } else if (expr[0] == '||') {
-                    return Boolean(expr[1] || expr[2]);
-                } else if (expr[0] == 'matches') {
-                    var re = new RegExp(expr[2], 'g');
-                    var x = String(expr[1]).match(re);
-                    variables['MATCHES'] = ['array'].concat(x);
-                    return Boolean(x);
+                if (evaluate_actions.hasOwnProperty(expr[0])) {
+                    var args = [];
+                    for (var i = 1; i < expr.length; i++) {
+                        args.push(_evaluate(expr[i]));
+                    }
+                    return evaluate_actions[expr[0]].apply(this, args);
                 } else {
-                    console.log('Cannot evaluate ' + util.inspect(expr));
+                    throw 'No code for expression ' + expr[0];
                 }
             } else {
                 return expr;
