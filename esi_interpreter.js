@@ -4,100 +4,131 @@ module.exports = {
 
         var variables = {};
 
-        var run_actions = {
-            'assign': function(line) {
-                variables[line[1]] = line[2];
-            },
-            'vars': function(line) {
-                return _evaluate(line[1]);
-            },
-            'text': function(line) {
-                return line[1];
-            },
-            'choose': function(line) {
-                var output = '';
-                for (var j = 1; j < line.length; j++) {
-                    if (line[j][0] == 'when') {
-                        if (_evaluate(line[j][1])) {
-                            output += _run(line[j][2]);
-                            break;
-                        }
-                    } else if (line[j][0] == 'otherwise') {
-                        output += _run(line[j][1]);
-                    }
-                }
-                return output;
-            },
-            'foreach': function(line) {
-                var output = '';
-                var collection = _evaluate(line[1]);
-                if (util.isArray(collection) && collection.length && collection[0] == 'array') {
-                    collection.shift();
-                    for (var j = 0; j < collection.length; j++) {
-                        variables['item'] = collection[j];
-                        output += _run(line[2]);
-                    }
-                }
-                return output;
-            },
-            'dollar': function(line) {
-                return '$';
-            }
-        };
+        var actions = {
 
-        function _run(code) {
-            var block_output = '', action_output;
-            for (var i = 0; i < code.length; i++) {
-                if (run_actions.hasOwnProperty(code[i][0])) {
-                    if (action_output = run_actions[code[i][0]](code[i])) {
-                        block_output += action_output;
-                    }
-                } else {
-                    throw 'No code for action ' + code[i][0];
-                }
-            }
-            return block_output;
-        }
+            'var': function(a) {
+                return variables[_evaluate(a)];
+            },
 
-        var evaluate_actions = {
-            '*': function(a, b) { return a * b; },
-            '/': function(a, b) { return a / b; },
-            '+': function(a, b) { return a + b; },
-            '-': function(a, b) { return a - b; },
-            '<': function(a, b) { return a < b; },
-            '>': function(a, b) { return a > b; },
-            '<=': function(a, b) { return a <= b; },
-            '>=': function(a, b) { return a >= b; },
-            '==': function(a, b) { return a == b; },
-            '!=': function(a, b) { return a != b; },
-            '&&': function(a, b) { return a && b; },
-            '||': function(a, b) { return a || b; },
-            'var': function(a) { return variables[a]; },
+            '*': function(a, b) {
+                return _evaluate(a) * _evaluate(b);
+            },
+
+            '/': function(a, b) {
+                return _evaluate(a) / _evaluate(b);
+            },
+
+            '+': function(a, b) {
+                return _evaluate(a) + _evaluate(b);
+            },
+
+            '-': function(a, b) {
+                return _evaluate(a) - _evaluate(b);
+            },
+
+            '<': function(a, b) {
+                return _evaluate(a) < _evaluate(b);
+            },
+
+            '>': function(a, b) {
+                return _evaluate(a) > _evaluate(b);
+            },
+
+            '<=': function(a, b) {
+                return _evaluate(a) <= _evaluate(b);
+            },
+
+            '>=': function(a, b) {
+                return _evaluate(a) >= _evaluate(b);
+            },
+
+            '==': function(a, b) {
+                return _evaluate(a) == _evaluate(b);
+            },
+
+            '!=': function(a, b) {
+                return _evaluate(a) != _evaluate(b);
+            },
+
+            '&&': function(a, b) {
+                return _evaluate(a) && _evaluate(b);
+            },
+
+            '||': function(a, b) {
+                return _evaluate(a) || _evaluate(b);
+            },
+
             'matches': function(a, b) {
-                var re = new RegExp(b, 'g');
-                var x = String(a).match(re);
+                var re = new RegExp(_evaluate(b), 'g');
+                var x = String(_evaluate(a)).match(re);
                 variables['MATCHES'] = ['array'].concat(x);
                 return Boolean(x);
             },
+
+            'vars': function(a) {
+                return _evaluate(a);
+            },
+
+            'text': function(a) {
+                return a;
+            },
+
+            'assign': function(a, b) {
+                variables[_evaluate(a)] = _evaluate(b);
+            },
+
+            'block': function() {
+                var output = '';
+                for (var i = 0; i < arguments.length; i++) {
+                    output += _evaluate(arguments[i]);
+                }
+                return output;
+            },
+
+            'choose': function() {
+                var output = '';
+                for (var i = 0; i < arguments.length; i++) {
+                    if (arguments[i][0] == 'when') {
+                        if (_evaluate(arguments[i][1])) {
+                            output += _evaluate(arguments[i][2]);
+                            break;
+                        }
+                    } else if (arguments[i][0] == 'otherwise') {
+                        output += _evaluate(arguments[i][1]);
+                        break;
+                    }
+                }
+                return output;
+            },
+
+            'foreach': function(a, b) {
+                var output = '';
+                var collection = _evaluate(a);
+                if (util.isArray(collection) && collection.length && collection[0] == 'array') {
+                    for (var j = 1; j < collection.length; j++) {
+                        variables['item'] = collection[j];
+                        output += _evaluate(b);
+                    }
+                }
+                return output;
+            },
+
+            '$dollar': function() {
+                return '$';
+            },
+
         };
 
         function _evaluate(expr) {
             if (util.isArray(expr)) {
-                if (evaluate_actions.hasOwnProperty(expr[0])) {
-                    var args = [];
-                    for (var i = 1; i < expr.length; i++) {
-                        args.push(_evaluate(expr[i]));
-                    }
-                    return evaluate_actions[expr[0]].apply(this, args);
-                } else {
-                    throw 'No code for expression ' + expr[0];
-                }
+                if (!actions.hasOwnProperty(expr[0])) throw 'No code for expression ' + util.inspect(expr); // for devs
+                return actions[expr[0]].apply(this, expr.slice(1));
             } else {
                 return expr;
             }
         }
         
-        return _run(code);
+        return _evaluate(code);
 
     }
 };

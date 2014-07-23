@@ -1,10 +1,10 @@
 code =
     content:content rest:(
         esi:(assign / choose / foreach / vars / text / function) code:code {
-            return [esi].concat(code);
+            return [esi].concat(code.slice(1));
         }
     )? {
-        var code = [content];
+        var code = ['block', content];
         if (rest) code = code.concat(rest);
         return code;
     }
@@ -61,7 +61,7 @@ text =
 
 function =
     '$' id:id '(' _ args:list? _ ')' {
-        var x = [id];
+        var x = ['$' + id];
         if (args) x = x.concat(args);
         return x;
     }
