@@ -3,118 +3,90 @@ module.exports = {
     'run': function run(code) {
 
         var variables = {};
-
+        var stack = [];
+        var pos = 0;
         var actions = {
 
-            'var': function(a) {
-                return variables[_evaluate(a)];
+            'var': function() {
+                stack.push(variables[stack.pop()]);
             },
 
-            '*': function(a, b) {
-                return _evaluate(a) * _evaluate(b);
+            '*': function() {
+                stack.push(stack.pop() * stack.pop());
             },
 
-            '/': function(a, b) {
-                return _evaluate(a) / _evaluate(b);
+            '/': function() {
+                stack.push(stack.pop() / stack.pop());
             },
 
-            '+': function(a, b) {
-                return _evaluate(a) + _evaluate(b);
+            '+': function() {
+                stack.push(stack.pop() + stack.pop());
             },
 
-            '-': function(a, b) {
-                return _evaluate(a) - _evaluate(b);
+            '-': function() {
+                stack.push(stack.pop() - stack.pop()); 
             },
 
-            '<': function(a, b) {
-                return _evaluate(a) < _evaluate(b);
+            '<': function() {
+                stack.push(stack.pop() < stack.pop());
             },
 
-            '>': function(a, b) {
-                return _evaluate(a) > _evaluate(b);
+            '>': function() {
+                stack.push(stack.pop() > stack.pop());
             },
 
-            '<=': function(a, b) {
-                return _evaluate(a) <= _evaluate(b);
+            '<=': function() {
+                stack.push(stack.pop() <= stack.pop());
             },
 
-            '>=': function(a, b) {
-                return _evaluate(a) >= _evaluate(b);
+            '>=': function() {
+                stack.push(stack.pop() >= stack.pop());
             },
 
-            '==': function(a, b) {
-                return _evaluate(a) == _evaluate(b);
+            '==': function() {
+                stack.push(stack.pop() == stack.pop());
             },
 
-            '!=': function(a, b) {
-                return _evaluate(a) != _evaluate(b);
+            '!=': function() {
+                stack.push(stack.pop() != stack.pop());
             },
 
-            '&&': function(a, b) {
-                return _evaluate(a) && _evaluate(b);
+            '&&': function() {
+                stack.push(stack.pop() && stack.pop());
             },
 
-            '||': function(a, b) {
-                return _evaluate(a) || _evaluate(b);
+            '||': function() {
+                stack.push(stack.pop() && stack.pop());
             },
 
-            'matches': function(a, b) {
-                var re = new RegExp(_evaluate(b), 'g');
-                var x = String(_evaluate(a)).match(re);
+            'matches': function() {
+                var re = new RegExp(stack.pop(), 'g');
+                var x = String(stack.pop()).match(re);
                 variables['MATCHES'] = ['array'].concat(x);
-                return Boolean(x);
+                stack.push(Boolean(x));
             },
 
-            'vars': function(a) {
-                return _evaluate(a);
+            'vars': function() {
+                output += stack.pop();
             },
 
-            'text': function(a) {
-                return a;
+            'text': function() {
+                output += stack.pop();
             },
 
-            'assign': function(a, b) {
-                variables[_evaluate(a)] = _evaluate(b);
+            'assign': function() {
+                variables[stack.pop()] = stack.pop();
             },
 
-            'block': function() {
-                var output = '';
-                for (var i = 0; i < arguments.length; i++) {
-                    output += _evaluate(arguments[i]);
+            'call': function() {
+                // FIXME
+                if (stack.pop() == 'dollar') {
+                    output += '$';
                 }
-                return output;
             },
 
-            'choose': function() {
-                var output = '';
-                for (var i = 0; i < arguments.length; i++) {
-                    if (arguments[i][0] == 'when') {
-                        if (_evaluate(arguments[i][1])) {
-                            output += _evaluate(arguments[i][2]);
-                            break;
-                        }
-                    } else if (arguments[i][0] == 'otherwise') {
-                        output += _evaluate(arguments[i][1]);
-                        break;
-                    }
-                }
-                return output;
-            },
-
-            'foreach': function(a, b) {
-                var output = '';
-                var collection = _evaluate(a);
-                if (util.isArray(collection) && collection.length && collection[0] == 'array') {
-                    for (var j = 1; j < collection.length; j++) {
-                        variables['item'] = collection[j];
-                        output += _evaluate(b);
-                    }
-                }
-                return output;
-            },
-
-            '$dollar': function() {
-                return '$';
+            'len': function() {
+                stack.push(stack.pop().length);
             },
 
             '$set_redirect': function(a) {
@@ -125,26 +97,44 @@ module.exports = {
             },
 
             'include': function(a) {
-                return 'aca va el include';
+                // FIXME
+                output += 'aca va el include';
+                /*
                 http.get(a, function(res) {
                     console.log("Got response: " + res.statusCode);
                 }).on('error', function(e) {
                     console.log("Got error: " + e.message);
                 });
+                */
+            },
+
+            'rewind': function() {
+                pos -= stack.pop();
+            },
+
+            'forward': function() {
+                pos += stack.pop();
+            },
+
+            'forward on false': function() {
+                var steps = stack.pop();
+                if (!stack.pop()) {
+                    pos += steps;
+                }
             },
 
         };
 
-        function _evaluate(expr) {
-            if (util.isArray(expr)) {
-                if (!actions.hasOwnProperty(expr[0])) throw 'No code for expression ' + util.inspect(expr); // for devs
-                return actions[expr[0]].apply(this, expr.slice(1));
+        while (pos < code.length) {
+            if (actions.hasOwnProperty(code[pos])) {
+                actions[code[pos]]();
             } else {
-                return expr;
+                stack.push(code[pos]);
             }
+            pos++;
         }
-        
-        return _evaluate(code);
+
+        return output;
 
     }
 };

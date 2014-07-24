@@ -1,13 +1,8 @@
 code =
-    content:content rest:(
-        esi:(assign / choose / foreach / vars / text / include / function) code:code {
-            return [esi].concat(code.slice(1));
-        }
-    )? {
-        var code = ['block', content];
-        if (rest) code = code.concat(rest);
-        return code;
-    }
+    content:content esi:(assign / choose / foreach / vars / text / include / function) code:code {
+        return content.concat(esi).concat(code);
+    } /
+    content
 
 content =
     chars:(
@@ -15,39 +10,52 @@ content =
             return char;
         }
     )* {
-        return ['text', chars.join('')];
+        return [chars.join(''), 'text'];
     }
 
 assign =
     '<esi:assign' __ 'name="' _ n:id _ '"' _ '>' e:expression '</esi:assign>' {
-        return ['assign', n, e];
+        return e.concat(n).concat(['assign']);
     }
 
 choose =
     '<esi:choose>' content when:when* otherwise:otherwise? '</esi:choose>' {
-        var choose = ['choose'].concat(when);
-        if (otherwise) choose.push(otherwise);
-        return choose;
+        var length = 0;
+        var code = [];
+        if (otherwise) {
+            code = otherwise;
+            length += otherwise.length;
+        }
+        for (var i = when.length - 1; i >= 0; i--) {
+            code = when[i].concat([length, 'forward']).concat(code);
+            length += when[i].length + 2;
+        }
+        return code;
     }
 
 when =
     '<esi:when' __ 'test="' _ e:boolean_expression _ '"' _ '>' code:code '</esi:when>' content {
-        return ['when', e, code];
+        return e.concat([code.length + 2, 'forward on false']).concat(code);
     }
 
 otherwise =
     '<esi:otherwise>' code:code '</esi:otherwise>' content {
-        return ['otherwise', code];
+        return code;
     }
 
 foreach =
     '<esi:foreach' __ 'collection="' _ e:array_expression _ '"' _ '>' code:code '</esi:foreach>' {
-        return ['foreach', e, code];
+        return e.concat(['COLLECTION', 'assign', 0, 'item_index', 'assign'])
+                .concat(['COLLECTION', 'var', 'len', 'COLLECTION_LENGTH', 'assign'])
+                .concat(['item_index', 'var', 'COLLECTION_LENGTH', 'var', '<', code.length + 8, 'forward on false'])
+                .concat(code)
+                .concat(['item_index', 'var', 1, '+', 'item_index', 'assign'])
+                .concat([e.length + 17 + code.length + 8, 'rewind']);
     }
 
 vars =
     '<esi:vars>' e:expression '</esi:vars>' {
-        return ['vars', e];
+        return e.concat(['vars']);
     }
 
 text =
@@ -56,34 +64,30 @@ text =
             return char;
         }
     )* '</esi:text>' {
-        return ['text', content.join('')];
+        return [content.join(''), 'text'];
     }
 
 include =
     '<esi:include' __ 'src="' src:[^"]+ '"' _ '/>' {
-        return ['include', src.join('')];
+        return [src.join(''), 'include'];
     }
 
 function =
     '$' id:id '(' _ args:list? _ ')' {
-        var x = ['$' + id];
-        if (args) x = x.concat(args);
-        return x;
+        return (args || []).concat(id).concat(['call']);
     }
 
 id =
     initial:[a-zA-Z_] rest:[a-zA-Z0-9_]* {
-        return initial + rest.join('');
+        return [initial + rest.join('')];
     }
 
 list =
     e:expression {
-        return [e];
+        return e;
     } /
     e:expression _ ',' _ l:list {
-        var x = [e];
-        x = x.concat(list);
-        return x;
+        return e.concat(l);
     }
 
 expression =
@@ -94,45 +98,45 @@ expression =
 
 array_expression =
     '[' l:list ']' {
-        return ['array', l];
+        return [['array', l]];
     } /
     variable /
     function
 
 boolean_expression =
-    boolean_term /
     a:boolean_term _ op:('&&' / '||') _ b:boolean_expression {
-        return [op, a, b];
-    }
+        return a.concat(b).concat([op]);
+    } /
+    boolean_term
 
 boolean_term =
     a:number_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:number_expression {
-        return [op, a, b];
+        return a.concat(b).concat([op]);
     } /
     a:string_expression _ op:('<' / '<=' / '>' / '>=' / '==' / '!=') _ b:string_expression {
-        return [op, a, b];
+        return a.concat(b).concat([op]);
     } /
     a:string_expression __ 'matches' __ "'''" re:[^']* "'''" {
-        return ['matches', a, re.join('')];
+        return a.concat([re.join(''), 'matches']);
     } /
     '(' _ e:boolean_expression _ ')' {
         return e;
     } /
     v:('true' / 'false') {
-        return v === 'true';
+        return [v === 'true'];
     } /
     variable /
     function
 
 string_expression =
     a:string_term _ op:[+] _ b:string_expression {
-        return [op, a, b];
+        return a.concat(b).concat([op]);
     } /
     string_term
 
 string_term =
     "'" chars:[^']* "'" {
-        return chars.join('');
+        return [chars.join('')];
     } /
     '(' _ e:string_expression _ ')' {
         return e;
@@ -142,13 +146,13 @@ string_term =
 
 number_expression =
     a:number_term _ op:[+-] _ b:number_expression {
-        return [op, a, b];
+        return a.concat(b).concat([op]);
     } /
     number_term
 
 number_term =
     a:number_factor _ op:[*/] _ b:number_term {
-        return [op, a, b];
+        return a.concat(b).concat([op]);
     } /
     number_factor
 
@@ -160,7 +164,7 @@ number_factor =
     )? {
         var x = parseInt(ints.join(''));
         if (decimals) x += decimals;
-        return x;
+        return [x];
     } /
     '(' _ e:number_expression _ ')' {
         return e;
@@ -174,9 +178,7 @@ variable =
             return e;
         }
     )? _ ')' {
-        var x = ['var', id];
-        if (sub) x.push(sub);
-        return x;
+        return id.concat(sub).concat(['var']);
     }
 
 _ =
