@@ -10,8 +10,11 @@ require('fs').readFile('example.html', 'utf8', function(err, doc) {
     }));
 
     var interpreter = require('./esi_interpreter');
-    var output = interpreter.run(bytecode);
-
-    process.stdout.write(output);
+    try {
+        var output = interpreter.run(bytecode);
+        process.stdout.write(output);
+    } catch (e) {
+        console.log('Redirect to ' + e.location);
+    }
 
 });

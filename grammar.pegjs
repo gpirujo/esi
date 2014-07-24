@@ -1,6 +1,6 @@
 code =
     content:content rest:(
-        esi:(assign / choose / foreach / vars / text / function) code:code {
+        esi:(assign / choose / foreach / vars / text / include / function) code:code {
             return [esi].concat(code.slice(1));
         }
     )? {
@@ -57,6 +57,11 @@ text =
         }
     )* '</esi:text>' {
         return ['text', content.join('')];
+    }
+
+include =
+    '<esi:include' __ 'src="' src:[^"]+ '"' _ '/>' {
+        return ['include', src.join('')];
     }
 
 function =

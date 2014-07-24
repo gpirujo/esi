@@ -117,6 +117,22 @@ module.exports = {
                 return '$';
             },
 
+            '$set_redirect': function(a) {
+                throw {
+                    'type': 'redirect',
+                    'location': a,
+                };
+            },
+
+            'include': function(a) {
+                return 'aca va el include';
+                http.get(a, function(res) {
+                    console.log("Got response: " + res.statusCode);
+                }).on('error', function(e) {
+                    console.log("Got error: " + e.message);
+                });
+            },
+
         };
 
         function _evaluate(expr) {
