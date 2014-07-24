@@ -10,12 +10,16 @@ content =
             return char;
         }
     )* {
-        return [chars.join(''), 'text'];
+        if (chars.length) {
+            return [chars.join(''), 'print'];
+        } else {
+            return [];
+        }
     }
 
 assign =
-    '<esi:assign' __ 'name="' _ n:id _ '"' _ '>' e:expression '</esi:assign>' {
-        return e.concat(n).concat(['assign']);
+    '<esi:assign' __ 'name="' _ id:id _ '"' _ '>' e:expression '</esi:assign>' {
+        return e.concat([id, 'assign']);
     }
 
 choose =
@@ -27,7 +31,7 @@ choose =
             length += otherwise.length;
         }
         for (var i = when.length - 1; i >= 0; i--) {
-            code = when[i].concat([length, 'forward']).concat(code);
+            code = when[i].concat([length, 'jump']).concat(code);
             length += when[i].length + 2;
         }
         return code;
@@ -35,7 +39,7 @@ choose =
 
 when =
     '<esi:when' __ 'test="' _ e:boolean_expression _ '"' _ '>' code:code '</esi:when>' content {
-        return e.concat([code.length + 2, 'forward on false']).concat(code);
+        return e.concat([code.length + 2, 'jump on false']).concat(code);
     }
 
 otherwise =
@@ -45,17 +49,28 @@ otherwise =
 
 foreach =
     '<esi:foreach' __ 'collection="' _ e:array_expression _ '"' _ '>' code:code '</esi:foreach>' {
-        return e.concat(['COLLECTION', 'assign', 0, 'item_index', 'assign'])
-                .concat(['COLLECTION', 'var', 'len', 'COLLECTION_LENGTH', 'assign'])
-                .concat(['item_index', 'var', 'COLLECTION_LENGTH', 'var', '<', code.length + 8, 'forward on false'])
-                .concat(code)
-                .concat(['item_index', 'var', 1, '+', 'item_index', 'assign'])
-                .concat([e.length + 17 + code.length + 8, 'rewind']);
+        var start = e.concat([
+            'COLLECTION', 'assign',
+            'COLLECTION', 'var', '$len', 'COLLECTION_LENGTH', 'assign',
+            0, 'item_index', 'assign',
+        ]);
+        var loop = [
+            'item_index', 'var', 'COLLECTION', 'subvar', 'item', 'assign',
+        ].concat(code).concat([
+            'item_index', 'var', 1, '+', 'item_index', 'assign',
+        ]);
+        var jof = [
+            'item_index', 'var', 'COLLECTION_LENGTH', 'var', '<', loop.length + 2, 'jump on false',
+        ];
+        var jump = [
+            -(loop.length + jof.length + 2), 'jump',
+        ];
+        return start.concat(jof).concat(loop).concat(jump);
     }
 
 vars =
     '<esi:vars>' e:expression '</esi:vars>' {
-        return e.concat(['vars']);
+        return e.concat(['print']);
     }
 
 text =
@@ -64,7 +79,7 @@ text =
             return char;
         }
     )* '</esi:text>' {
-        return [content.join(''), 'text'];
+        return [content.join(''), 'print'];
     }
 
 include =
@@ -74,20 +89,20 @@ include =
 
 function =
     '$' id:id '(' _ args:list? _ ')' {
-        return (args || []).concat(id).concat(['call']);
+        return (args || []).concat(['$' + id]);
     }
 
 id =
     initial:[a-zA-Z_] rest:[a-zA-Z0-9_]* {
-        return [initial + rest.join('')];
+        return initial + rest.join('');
     }
 
 list =
-    e:expression {
-        return e;
-    } /
     e:expression _ ',' _ l:list {
         return e.concat(l);
+    } /
+    e:expression {
+        return e;
     }
 
 expression =
@@ -98,7 +113,7 @@ expression =
 
 array_expression =
     '[' l:list ']' {
-        return [['array', l]];
+        return [l];
     } /
     variable /
     function
@@ -178,7 +193,11 @@ variable =
             return e;
         }
     )? _ ')' {
-        return id.concat(sub).concat(['var']);
+        if (sub) {
+            return sub.concat([id, 'subvar']);
+        } else {
+            return [id, 'var'];
+        }
     }
 
 _ =

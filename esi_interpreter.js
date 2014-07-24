@@ -2,91 +2,120 @@ var util = require('util');
 module.exports = {
     'run': function run(code) {
 
-        var variables = {};
+        var output = '';
+        var heap = {};
         var stack = [];
         var pos = 0;
         var actions = {
 
             'var': function() {
-                stack.push(variables[stack.pop()]);
+                var x = stack.pop();
+                stack.push(heap[x]);
+            },
+
+            'subvar': function() {
+                var x = stack.pop();
+                var y = stack.pop();
+                stack.push(heap[x][y]);
             },
 
             '*': function() {
-                stack.push(stack.pop() * stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x * y);
             },
 
             '/': function() {
-                stack.push(stack.pop() / stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x / y);
             },
 
             '+': function() {
-                stack.push(stack.pop() + stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x + y);
             },
 
             '-': function() {
-                stack.push(stack.pop() - stack.pop()); 
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x - y);
             },
 
             '<': function() {
-                stack.push(stack.pop() < stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x < y);
             },
 
             '>': function() {
-                stack.push(stack.pop() > stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x > y);
             },
 
             '<=': function() {
-                stack.push(stack.pop() <= stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x <= y);
             },
 
             '>=': function() {
-                stack.push(stack.pop() >= stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x >= y);
             },
 
             '==': function() {
-                stack.push(stack.pop() == stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x == y);
             },
 
             '!=': function() {
-                stack.push(stack.pop() != stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x != y);
             },
 
             '&&': function() {
-                stack.push(stack.pop() && stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x && y);
             },
 
             '||': function() {
-                stack.push(stack.pop() && stack.pop());
+                var y = stack.pop();
+                var x = stack.pop();
+                stack.push(x || y);
             },
 
             'matches': function() {
-                var re = new RegExp(stack.pop(), 'g');
-                var x = String(stack.pop()).match(re);
-                variables['MATCHES'] = ['array'].concat(x);
+                var y = new RegExp(stack.pop(), 'g');
+                var x = String(stack.pop()).match(y);
+                heap['MATCHES'] = x;
                 stack.push(Boolean(x));
             },
 
-            'vars': function() {
-                output += stack.pop();
-            },
-
-            'text': function() {
+            'print': function() {
                 output += stack.pop();
             },
 
             'assign': function() {
-                variables[stack.pop()] = stack.pop();
+                var x = stack.pop();
+                var y = stack.pop();
+                heap[x] = y;
             },
 
-            'call': function() {
-                // FIXME
-                if (stack.pop() == 'dollar') {
-                    output += '$';
-                }
+            '$dollar': function() {
+                stack.pop(); //true
+                output += '$';
             },
 
-            'len': function() {
-                stack.push(stack.pop().length);
+            '$len': function() {
+                var x = stack.pop();
+                stack.push(x.length);
             },
 
             '$set_redirect': function(a) {
@@ -96,7 +125,7 @@ module.exports = {
                 };
             },
 
-            'include': function(a) {
+            'include': function() {
                 // FIXME
                 output += 'aca va el include';
                 /*
@@ -108,19 +137,19 @@ module.exports = {
                 */
             },
 
-            'rewind': function() {
-                pos -= stack.pop();
-            },
-
-            'forward': function() {
+            'jump': function() {
                 pos += stack.pop();
             },
 
-            'forward on false': function() {
+            'jump on false': function() {
                 var steps = stack.pop();
                 if (!stack.pop()) {
                     pos += steps;
                 }
+            },
+
+            'dump': function() {
+                console.log(heap);
             },
 
         };

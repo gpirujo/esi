@@ -1,0 +1,13 @@
+<esi:assign name="zz">5</esi:assign>
+<esi:choose>
+    <esi:when test="2 > 3">
+        2 mayor que 4
+    </esi:when>
+    <esi:when test="4 > $(zz)">
+        <esi:vars>'4 mayor que ' + $(zz)</esi:vars>
+    </esi:when>
+    <esi:otherwise>
+        ni fa ni fu
+    </esi:otherwise>
+</esi:choose>
+fin

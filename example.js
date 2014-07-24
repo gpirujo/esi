@@ -1,4 +1,4 @@
-require('fs').readFile('example.html', 'utf8', function(err, doc) {
+require('fs').readFile(process.argv[2], 'utf8', function(err, doc) {
     if (err) return console.log(err);
 
     var parser = require('./esi_parser.js');
