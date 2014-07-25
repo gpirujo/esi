@@ -1,8 +1,7 @@
 var util = require('util');
 module.exports = {
-    'run': function run(code) {
+    'run': function run(code, output, end, err, http) {
 
-        var output = '';
         var heap = {};
         var stack = [];
         var pos = 0;
@@ -99,7 +98,7 @@ module.exports = {
             },
 
             'print': function() {
-                output += stack.pop();
+                output.write(stack.pop());
             },
 
             'assign': function() {
@@ -110,7 +109,7 @@ module.exports = {
 
             '$dollar': function() {
                 stack.pop(); //true
-                output += '$';
+                output.write('$');
             },
 
             '$len': function() {
@@ -126,15 +125,10 @@ module.exports = {
             },
 
             'include': function() {
-                // FIXME
-                output += 'aca va el include';
-                /*
-                http.get(a, function(res) {
-                    console.log("Got response: " + res.statusCode);
-                }).on('error', function(e) {
-                    console.log("Got error: " + e.message);
+                http(stack.pop(), output, _run, function(e) {
+                    _run();
                 });
-                */
+                throw new Error('suspend');
             },
 
             'jump': function() {
@@ -154,16 +148,27 @@ module.exports = {
 
         };
 
-        while (pos < code.length) {
-            if (actions.hasOwnProperty(code[pos])) {
-                actions[code[pos]]();
-            } else {
-                stack.push(code[pos]);
+        function _run() {
+            while (pos < code.length) {
+                var action = code[pos++];
+                if (actions.hasOwnProperty(action)) {
+                    try {
+                        actions[action]();
+                    } catch (e) {
+                        if (e.message == 'suspend') {
+                            return;
+                        } else {
+                            err.call(this, e);
+                        }
+                    }
+                } else {
+                    stack.push(action);
+                }
             }
-            pos++;
+            end.call(this);
         }
 
-        return output;
+        _run();
 
     }
 };
