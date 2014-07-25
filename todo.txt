@@ -1,0 +1,1 @@
+create a constants module so that labels in parse result are smaller and caching it takes less space
